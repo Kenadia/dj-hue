@@ -23,7 +23,7 @@ html
 
             function changed(name, value) {
                 data = {"name": name, "value": value};
-                $.ajax('/change', {type: "POST", data: data});
+                $.ajax('/changemode', {type: "POST", data: data});
             }
 
             function AppViewModel() {

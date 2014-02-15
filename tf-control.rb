@@ -9,10 +9,6 @@ The id field represents the index of the control within its grouping,
 
 class TFControl
 
-    KIND_BUTTON = 0
-    KIND_SLIDER = 1
-    KIND_KNOB = 2
-
     NOTE_TYPE = 153
     CONTROL_TYPE = 185
 
@@ -31,19 +27,20 @@ class TFControl
         case type
 
             when NOTE_TYPE
-                self.kind = KIND_BUTTON
-                self.id = BUTTON_NOTES.index([id, value])
+                @kind = "button"
+                print "[#{id}, #{value}]"
+                @id = BUTTON_NOTES.index([id, value])
                 
             when CONTROL_TYPE
-                self.id = SLIDER_NOTES.index(id)
-                if self.id
-                    self.kind = KIND_SLIDER
+                @id = SLIDER_NOTES.index(id)
+                if @id
+                    @kind = "slider"
                 else
-                    self.kind = KIND_KNOB
-                    self.id = KNOB_NOTES.index(id)
+                    @kind = "knob"
+                    @id = KNOB_NOTES.index(id)
                 end
-                self.value = value
-                self.percentage = self.value / MAX_VALUE.to_f
+                @value = value
+                @percentage = @value / MAX_VALUE.to_f
 
         end
     end
