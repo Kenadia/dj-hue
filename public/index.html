@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+    <head>
+        <title>
+            sup
+        </title>
+        <script src="jquery.js"></script>
+        <script src="knockout.js"></script>
+    </head>
+    <body>
+
+        <script type="text/javascript">
+
+            function AppViewModel() {
+                this.button_1 = ko.observable("");
+            }
+
+            $(document).ready(function() {
+                ko.applyBindings(new AppViewModel());
+            })
+        </script>
+
+        <p>
+            Button 1: <input data-bind="value: button_1" />
+        </p>
+        <p>
+            Button 1 is set to <strong data-bind="text: button_1">-none-</strong>
+        </p>
+    </body>
+</html>
