@@ -1,7 +1,7 @@
 - reduce latency (direct access to api)
-    - define put
-    - parse_color returns hsb
+    √ define put
+    √ parse_color returns hsb
 - latency calibration for sync with audio
-- throttle changes
+√ throttle changes
 - nice interface
 - make it work with keyboard
