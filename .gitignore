@@ -1,4 +1,2 @@
 .DS_Store
-control.rb
-lib/
-test.rb
+hue.py

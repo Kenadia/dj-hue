@@ -28,7 +28,6 @@ class TFControl
 
             when NOTE_TYPE
                 @kind = "button"
-                print "[#{id}, #{value}]"
                 @id = BUTTON_NOTES.index([id, value])
                 
             when CONTROL_TYPE

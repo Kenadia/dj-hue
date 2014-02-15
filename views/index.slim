@@ -11,6 +11,12 @@ html
 
         javascript:
 
+            var defaults = ["1 pulse #ff0000", "2 pulse #7fff00", "3 pulse #00ffff", "all pulse #7f00ff",
+                            "1 pulse #ff5f00", "2 pulse #21ff00", "3 pulse #00a1ff", "all pulse #dc00ff",
+                            "1 pulse #ffbf00", "2 pulse #00ff3f", "3 pulse #003fff", "all pulse #ff00bf",
+                            "1 pulse #e1ff00", "2 pulse #00ff9d", "3 pulse #1d00ff", "all pulse #ff0061",
+                            "1 brightness", "2 brightness", "3 brightness", "all brightness"];
+
             function parse_names() {
                 s = "#{get_names()}";
                 s = s.replace(/\&quot;/g, "\"");
@@ -29,8 +35,9 @@ html
             function AppViewModel() {
                 control_names = parse_names();
                 for (var i in control_names) {
-                    eval(control_names[i] + " = ko.observable(\"\");");
+                    eval(control_names[i] + " = ko.observable(\"" + defaults[i] + "\");");
                     eval(control_names[i] + ".subscribe(function(){changed(\"" + control_names[i] + "\"," + control_names[i] + "())});")
+                    changed(control_names[i], defaults[i]);
                 }
             }
 

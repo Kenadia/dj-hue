@@ -1,0 +1,5 @@
+- reduce latency (direct access to api)
+- latency calibration for sync with audio
+- throttle changes
+- nice interface
+- make it work with keyboard
