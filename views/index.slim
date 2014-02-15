@@ -1,0 +1,45 @@
+- require 'action_view'
+- require 'json'
+- def get_names() return @control_names.to_json end
+    
+doctype html
+html
+    head
+        title sup
+        script src="jquery.js"
+        script src="knockout.js"
+
+        javascript:
+
+            function parse_names() {
+                s = "#{get_names()}";
+                s = s.replace(/\&quot;/g, "\"");
+                s = s.replace(/:true/g, "");
+                s = s.replace("{", "[");
+                s = s.replace("}", "]");
+                eval("x=" + s);
+                return x;
+            }
+
+            function changed(name, value) {
+                data = {"name": name, "value": value};
+                $.ajax('/change', {type: "POST", data: data});
+            }
+
+            function AppViewModel() {
+                control_names = parse_names();
+                for (var i in control_names) {
+                    eval(control_names[i] + " = ko.observable(\"\");");
+                    eval(control_names[i] + ".subscribe(function(){changed(\"" + control_names[i] + "\"," + control_names[i] + "())});")
+                }
+            }
+
+            $(document).ready(function() {
+                ko.applyBindings(new AppViewModel());
+            })
+
+    body
+        - @control_names.each do |name, value|
+            span #{name}
+            input data-bind="value: #{name}"
+            br
