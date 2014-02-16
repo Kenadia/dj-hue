@@ -6,12 +6,39 @@ controller = Controller.new
 
 # controller.init_lights()
 Thread.new() { controller.midi_hue_loop() }
+# Thread.new() { controller.midi_poll_loop() }
 
 get '/' do
-    @control_names = Hash[controller.get_control_names().collect { |v| [v, true] }]
+    # M for M-Audio Trigger Finger, K for NanoKorg
+    @selected = controller.get_selected
+    @control_names = Hash[controller.get_control_names(nil).collect { |v| [v, true] }]
+    @control_names1 = controller.get_control_names(1)
+    @pad_names = Hash[@control_names1[0..15].collect { |v| [v, true] }]
+    @slider_names = Hash[@control_names1[0..3].collect { |v| [v, true] }]
+    @knob_names = Hash[@control_names1[0..7].collect { |v| [v, true] }]
+    @control_names2 = controller.get_control_names(2)
+    @key_names = Hash[@control_names2[0..24].collect { |v| [v, true] }]
     slim :index
 end
 
-post '/changemode' do
+# post '/ajax/midi' do
+#     available = controller.get_available
+#     content_type :json
+#     if available != request["available"]
+#         {:changed => true, :available => available}.to_json
+#     else
+#         {:changed => false, :available => available}.to_json
+#     end
+# end
+
+post '/ajax/setcontroller1' do
+    controller.select_controller("M-Audio USB Trigger Finger")
+end
+
+post '/ajax/setcontroller2' do
+    controller.select_controller("KORG INC. nanoKEY")
+end
+
+post '/ajax/changemode' do
     controller.change_control_mode(request["name"], request["value"])
 end

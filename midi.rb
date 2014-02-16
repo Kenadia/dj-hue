@@ -2,6 +2,7 @@ $:.unshift File.dirname(__FILE__)
 
 require 'unimidi'
 require './tf-control'
+require './nk-control'
 require "net/http"
 
 
@@ -60,28 +61,65 @@ class Controller
         end
     end
 
-    def init_controller()
-        case UniMIDI::Input.all.length
-        when 0
-            abort("Cannot find a MIDI controller, aborting")
-        when 1
-            @input = UniMIDI::Input.first.open
-            puts "MIDI controller found: #{@input.pretty_name}"
-        else
-            @input = UniMIDI::Input.gets
+    def available_controllers()
+        @inputs = UniMIDI::Input.all
+        devices = @inputs[1..@inputs.length-1]
+        if devices
+            devices.map{ |i| i.pretty_name[3]}
         end
+    end
+
+
+    #     devices = UniMIDI::Input.all
+    #     if devices.length >= 2
+    #         @input = UniMIDI::Input[1].open
+    #         puts "Selected controller: #{@input.pretty_name}"
+    #         @selected = @input.pretty_name[3]
+    #         if devices.length == 3
+    #             @available = "KM"
+    #         else
+    #             @available = @selected
+    #         end
+    #     end
+    #     # @input = UniMIDI::Input.gets
+    # end
+
+    def select_controller(s)
+        @available = available_controllers()
+        if (index = @available.index(s[0]))
+            @input = @inputs[index + 1].open
+            puts "Selected controller: #{@input.pretty_name}"
+            @selected = s[0]
+        end
+    end
+
+    # M for M-Audio Trigger Finger, K for Korg Nano
+    def get_selected()
+        return @selected
+    end
+
+    def get_available()
+        return @available
     end
 
     def initialize
 
         init_lights()
-        init_controller()
+        @available = available_controllers()
+        if @available
+            @inputs = UniMIDI::Input.all
+            @input = @inputs[1].open
+            puts "Selected controller: #{@input.pretty_name}"
+            @selected = @available[0]
+        end
 
         # Controls and actions
-        @control_names = []
-        (0..15).each{|i| @control_names.push("button_#{i}")}
-        (0..3).each{|i| @control_names.push("slider_#{i}")}
-        (0..7).each{|i| @control_names.push("knob_#{i}")}
+        @control_names1 = []
+        (0..15).each{|i| @control_names1.push("button_#{i}")}
+        (0..3).each{|i| @control_names1.push("slider_#{i}")}
+        (0..7).each{|i| @control_names1.push("knob_#{i}")}
+        @control_names2 = []
+        (0..24).each{|i| @control_names2.push("key_#{i}")}
         @control_actions = Hash.new
 
         @last_midi_input = Hash.new
@@ -156,8 +194,17 @@ class Controller
         end
     end
 
-    def get_control_names()
-        return @control_names
+    def get_control_names(a)
+        if a
+            case a
+            when 1
+                @control_names1
+            when 2
+                @control_names2
+            end
+        else
+            @control_names1.concat @control_names2
+        end
     end
 
     def change_control_mode(name, action)
@@ -167,21 +214,60 @@ class Controller
 
     def midi_hue_loop()
         print "Listening for MIDI input...\n"
-        loop do
-            
-            # Parse MIDI data from Trigger Finger
-            input = @input.gets[0]
-            data, t = input[:data], input[:timestamp]
-            type, id, value = data
-            if !@last_midi_input[id] || t - @last_midi_input[id] > THROTTLE
-                @last_midi_input[id] = t
-                control = TFControl.new(type, id, value)
-                if control and control.id
-                    # print "#{control.kind}_#{control.id} (#{control.value})\n"
-                    parse_action(@control_actions["#{control.kind}_#{control.id}"], control.percentage)
-                end
-            end
+        Thread.new() { tf_loop() }
+        nk_loop()
+    end
 
+    def tf_loop()
+        loop do
+            while @selected == "M" do
+                # Parse MIDI data from Trigger Finger
+                input = @input.gets[0]
+                if @selected == "M"
+                    data, t = input[:data], input[:timestamp]
+                    type, id, value = data
+                    if !@last_midi_input[id] || t - @last_midi_input[id] > THROTTLE
+                        @last_midi_input[id] = t
+                        control = TFControl.new(type, id, value)
+                        if control and control.id
+                            print "TF\t#{control.kind}_#{control.id} (#{control.value})\n"
+                            parse_action(@control_actions["#{control.kind}_#{control.id}"], control.percentage)
+                        end
+                    end
+                end
+                sleep 0.05
+            end
+            sleep 0.5
         end
     end
+
+    def nk_loop()
+        loop do
+            while @selected == "K" do
+                # Parse MIDI data from Korg Nano
+                input = @input.gets[0]
+                if @selected == "K"
+                    data = input[:data]
+                    type, id, value = data
+                    control = NKControl.new(type, id, value)
+                    if control and control.id
+                        print "NK\t#{control.kind}_#{control.id} (#{control.value})\n"
+                        parse_action(@control_actions["#{control.kind}_#{control.id}"], control.percentage)
+                    end
+                end
+                sleep 0.05
+            end
+            sleep 0.5
+        end
+    end
+
+    # def midi_poll_loop()
+    #     loop do
+    #         @available = available_controllers()
+    #         if not @available.include? @selected
+    #             @selected = nil
+    #         end
+    #         sleep 0.5
+    #     end
+    # end
 end
