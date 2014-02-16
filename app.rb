@@ -8,7 +8,7 @@ controller = Controller.new
 Thread.new() { controller.midi_hue_loop() }
 # Thread.new() { controller.midi_poll_loop() }
 
-get '/' do
+get '/index.html' do
     # M for M-Audio Trigger Finger, K for NanoKorg
     @selected = controller.get_selected
     @control_names = Hash[controller.get_control_names(nil).collect { |v| [v, true] }]
@@ -41,4 +41,14 @@ end
 
 post '/ajax/changemode' do
     controller.change_control_mode(request["name"], request["value"])
+end
+
+post '/ajax/signal' do
+    signal = controller.query_signal()
+    content_type :json
+    {:signal => signal}.to_json
+end
+
+post '/ajax/signalstop' do
+    controller.query_signal_stop()
 end

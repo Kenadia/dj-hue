@@ -108,7 +108,7 @@ class Controller
         @available = available_controllers()
         if @available
             @inputs = UniMIDI::Input.all
-            @input = @inputs[1].open
+            @input = @inputs[-1].open
             puts "Selected controller: #{@input.pretty_name}"
             @selected = @available[0]
         end
@@ -123,6 +123,8 @@ class Controller
         @control_actions = Hash.new
 
         @last_midi_input = Hash.new
+        @calibration_mode = false
+        @signal_flag = false
 
         # Regexes
         @pulse_regex = /^\s*(\d(?:,\d)*|all)\s+(pulse|flash)(?:\s+(red|green|blue|#[0-9a-fA-F]{6}))?\s*$/
@@ -212,6 +214,22 @@ class Controller
         @control_actions[name] = action
     end
 
+    def query_signal()
+        print "CALIBRATION MODE ON\n"
+        @calibration_mode = true
+        if @signal_flag
+            @signal_flag = false
+            return true
+        else
+            return false
+        end
+    end
+
+    def query_signal_stop()
+        print "NO MORE CALIBRATION\n"
+        @calibration_mode = false
+    end
+
     def midi_hue_loop()
         print "Listening for MIDI input...\n"
         Thread.new() { tf_loop() }
@@ -222,7 +240,13 @@ class Controller
         loop do
             while @selected == "M" do
                 # Parse MIDI data from Trigger Finger
-                input = @input.gets[0]
+                
+                begin
+                    input = @input.gets[0]
+                    print "SIGNAL!\n"
+                    @signal_flag ||= (input[:data][2] > 0)
+                end while @calibration_mode
+
                 if @selected == "M"
                     data, t = input[:data], input[:timestamp]
                     type, id, value = data
@@ -245,7 +269,13 @@ class Controller
         loop do
             while @selected == "K" do
                 # Parse MIDI data from Korg Nano
-                input = @input.gets[0]
+
+                begin
+                    input = @input.gets[0]
+                    print "SIGNAL!\n"
+                    @signal_flag ||= (input[:data][2] > 0)
+                end while @calibration_mode
+
                 if @selected == "K"
                     data = input[:data]
                     type, id, value = data

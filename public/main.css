@@ -119,7 +119,6 @@ a:after {
 .form-control {
     height: 36px;
     font-size: 18px;
-    width: 360px;
 }
 
 .control-label {
@@ -129,6 +128,11 @@ a:after {
 
 .input-box {
     margin-bottom: 16px;
+}
+
+.color-box {
+    width: 36px;
+    height: 36px;
 }
 
 .navbar .container .navbar-collapse .nav a .control-icon {
@@ -147,7 +151,7 @@ a:after {
 }
 
 .navbar .container .navbar-collapse .nav a .control-icon:hover {
-    background-color: #7b7b7b;
+    background-color: #555;
 }
 
 i {
@@ -162,6 +166,34 @@ i {
 
 .navbar .navbar-collapse {
   text-align: center;
+}
+
+/*.circle {
+    margin: 0 auto;
+    background-color: #141414;
+    border: 1px solid #141414;
+    border-radius: 50%;
+    width: 200px;
+    height: 200px;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+*/
+
+#interpreter {
+    background-color: #373737;
+    height: 200px;
+}
+
+#interpreter input.form-control {
+    color: #aaddff;
+    background-color: transparent;
+    font-size: 48px;
+    font-weight: 300;
+    width: 50%;
+    margin: 0 auto;
+    height: 80px;
+    text-align: center;
 }
 
 /* HeaderWrap */

@@ -8,28 +8,8 @@ html
         title sup
         script src="jquery.js"
         script src="knockout.js"
-        link rel="shortcut icon" href="favicon.png"
-        link href="bootstrap.css" rel="stylesheet"
-        link href="main.css" rel="stylesheet"
-        link href="http://fonts.googleapis.com/css?family=Raleway:300,400,900" rel="stylesheet" type="text/css"
-
         javascript:
-
             var available = "#{@available}";
-
-            var defaults = ["1 pulse #ff0000", "2 pulse #7fff00", "3 pulse #00ffff", "2 flash",
-                            "1 pulse #ff5f00", "2 pulse #21ff00", "3 pulse #00a1ff", "2 flash #ff0000",
-                            "1 pulse #ffbf00", "2 pulse #00ff3f", "3 pulse #003fff", "2 flash #00ff00",
-                            "1 pulse #e1ff00", "2 pulse #00ff9d", "3 pulse #1d00ff", "2 flash #0000ff",
-                            "1 brightness", "2 brightness", "3 brightness", "all brightness",
-                            "2 flash", "2 flash", "2 flash", "2 flash",
-                            "2 flash", "2 flash", "2 flash", "2 flash",
-                            "2 flash", "2 flash", "2 flash", "2 flash", "2 flash",
-                            "2 flash", "2 flash", "2 flash", "2 flash", "2 flash",
-                            "2 flash", "2 flash", "2 flash", "2 flash", "2 flash",
-                            "2 flash", "2 flash", "2 flash", "2 flash", "2 flash",
-                            "2 flash", "2 flash", "2 flash", "2 flash", "2 flash"];
-
             function parse_names() {
                 s = "#{get_names()}";
                 s = s.replace(/\&quot;/g, "\"");
@@ -39,61 +19,13 @@ html
                 eval("x=" + s);
                 return x;
             }
-
-            function changed(name, value) {
-                var data = {name: name, value: value};
-                $.ajax('/ajax/changemode', {type: 'POST', data: data});
-            }
-
-            function AppViewModel() {
-                control_names = parse_names();
-                for (var i in control_names) {
-                    eval(control_names[i] + " = ko.observable(\"" + defaults[i] + "\");");
-                    console.log(control_names[i] + " = ko.observable(\"" + defaults[i] + "\");");
-                    eval(control_names[i] + ".subscribe(function(){changed(\"" + control_names[i] + "\"," + control_names[i] + "())});")
-                    changed(control_names[i], defaults[i]);
-                }
-            }
-
-            // function pollMidi() {
-            //     var data = {available: available};
-            //     $.post('/ajax/midi', data, function(data) {
-            //         if (data["changed"]) {
-            //             available = data["available"];
-            //             if ($.inArray("M", available)) {
-            //                 $( "#tf-icon" ).show();
-            //             } else {
-            //                 $( "#tf-icon" ).hide();
-            //         console.log("changed: " + data["changed"] + " available: " + available);
-            //             }
-            //             if ($.inArray("K", available)) {
-            //                 $( "#nk-icon" ).show();
-            //             } else {
-            //                 $( "#nk-icon" ).hide();
-            //         console.log("changed: " + data["changed"] + " available: " + available);
-            //             }
-            //         }
-            //         setTimeout(pollMidi, 500);
-            //     });
-            // }
-
-            $(document).ready(function() {
-                ko.applyBindings(new AppViewModel());
-                $( "#tf-icon" ).click(function() {
-                    $.ajax('/ajax/setcontroller1', {type: 'POST'});
-                    $( "#nk-set" ).hide(0);
-                    $( "#tf-set" ).show(0);
-                });
-                $( "#nk-icon" ).click(function() {
-                    $.ajax('/ajax/setcontroller2', {type: 'POST'});
-                    $( "#tf-set" ).hide(0);
-                    $( "#nk-set" ).show(0);
-                });
-                // pollMidi();
-            })
+        script src="main.js"
+        link rel="shortcut icon" href="favicon.png"
+        link href="bootstrap.css" rel="stylesheet"
+        link href="main.css" rel="stylesheet"
+        link href="http://fonts.googleapis.com/css?family=Raleway:300,400,900" rel="stylesheet" type="text/css"
 
     body
-        div style="height: 10px"
         div.navbar.navbar-default.navbar-fixed-top
             div.container
                 div.navbar-header
@@ -111,41 +43,55 @@ html
                             img.control-icon src="./key.png"
                     ul.nav.navbar-nav.navbar-right
                         li
-                            a href="faq.html"
-                            p style="font-weight: 700; font-size: 18px; color: #fff" Reset
-
-        div id="headerwrap"
-            div.container style="margin-top: -80px"
+                            a href="#" id="interpreter-link"
+                            p style="font-weight: 700; font-size: 18px; color: #fff" Interpreter
+        div style="height: 84px"
+        #interpreter
+            div style="height: 50px"
+            input.form-control#interpreter-input
+            div style="height: 50px"
+        div id="headerwrap" style="padding-top: 24px"
+            div.container
                 div id="tf-set"
-                    div.row
-                        div.col-lg-12
-                            h2.col-sm-offset-2 Pads
-                            - @pad_names.each do |name, value|
-                                label.control-label.col-sm-5 for="#{name}" #{name}
-                                div.col-sm-7.input-box
-                                    input.form-control id="#{name}" type="text" data-bind="value: #{name}"
-                                br
-                            h2.col-sm-offset-2 Sliders
-                            - @slider_names.each do |name, value|
-                                label.control-label.col-sm-5 for="#{name}" #{name}
-                                div.col-sm-7.input-box
-                                    input.form-control id="#{name}" type="text" data-bind="value: #{name}"
-                                br
-                            h2.col-sm-offset-2 Knobs
-                            - @knob_names.each do |name, value|
-                                label.control-label.col-sm-5 for="#{name}" #{name}
-                                div.col-sm-7.input-box
-                                    input.form-control id="#{name}" type="text" data-bind="value: #{name}"
-                                br
+                    .row
+                        .col-xs-12
+                            h2 Pads
+                    - @pad_names.each do |name, value|
+                        .row
+                            label.control-label.col-xs-3 for="#{name}" #{name}
+                            div.col-xs-6.input-box
+                                input.form-control id="#{name}" type="text" data-bind="value: #{name}"
+                            div.col-xs-3
+                                div.color-box id="#{name}-color"
+                    h2 Sliders
+                    - @slider_names.each do |name, value|
+                        .row
+                            label.control-label.col-xs-3 for="#{name}" #{name}
+                            div.col-xs-6.input-box
+                                input.form-control id="#{name}" type="text" data-bind="value: #{name}"
+                            div.col-xs-3
+                                div.color-box id="#{name}-color"
+                    h2 Knobs
+                    - @knob_names.each do |name, value|
+                        .row
+                            label.control-label.col-xs-3 for="#{name}" #{name}
+                            div.col-xs-6.input-box
+                                input.form-control id="#{name}" type="text" data-bind="value: #{name}"
+                            div.col-xs-3
+                                div.color-box id="#{name}-color"
                 div id="nk-set"
-                    div.row
-                        div.col-lg-12
-                            h2.col-sm-offset-2 Keys
-                            - @key_names.each do |name, value|
-                                label.control-label.col-sm-5 for="#{name}" #{name}
-                                div.col-sm-7.input-box
-                                    input.form-control id="#{name}" type="text" data-bind="value: #{name}"
-                                br
+                    .row
+                        .col-xs-12
+                            h2 Keys
+                    - @key_names.each do |name, value|
+                        .row
+                            label.control-label.col-xs-3 for="#{name}" #{name}
+                            div.col-xs-6.input-box
+                                input.form-control id="#{name}" type="text" data-bind="value: #{name}"
+                            div.col-xs-3
+                                div.color-box id="#{name}-color"
+            // div id="calibration"
+            //     .circle
 
         - if @selected != "K"
             javascript:
@@ -154,4 +100,4 @@ html
             javascript:
                 $( "#tf-set" ).hide(0);
 
-        div.row align="center" style="padding-top: 50px"
+        .row align="center" style="padding-top: 50px"
