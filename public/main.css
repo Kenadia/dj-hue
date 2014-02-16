@@ -168,6 +168,10 @@ i {
   text-align: center;
 }
 
+.navbar-fixed-top {
+    border-bottom: rgba(0, 0, 0, 0.2) solid 1px;
+}
+
 /*.circle {
     margin: 0 auto;
     background-color: #141414;
@@ -196,12 +200,24 @@ i {
     text-align: center;
 }
 
+.icon {
+    position: absolute;
+}
+
+input.good {
+    border: 1px solid green;
+}
+
+input.bad {
+    border: 1px solid red;
+}
+
 /* HeaderWrap */
 #headerwrap {
     /* background: url(../img/bg01.jpg) no-repeat center top; */
     background-color: #fff;
     margin-top: -20px;
-    padding-top:200px;
+    padding-top: 200px;
     background-attachment: relative;
     background-position: center center;
     min-height: 650px;

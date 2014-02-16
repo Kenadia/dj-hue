@@ -5,3 +5,13 @@
 √ throttle changes
 √ nice interface
 √ make it work with keyboard
+
+
+
+
+new todo
+√ make strobe work
+√ make multiple commands work
+- make sure things work
+- make good defaults
+- make good video

@@ -9,11 +9,12 @@ require "net/http"
 class Controller
 
     PORT = 80
-    URL = "http://192.168.1.134/api/1234567890/"
+    URL = "http://192.168.1.119/api/1234567890/"
     @http = Net::HTTP.new(URL, PORT)
 
     BULB_COUNT = 3
     THROTTLE = 200  # ms
+    STROBE_MAX = 300
 
     MAX_HUE = 65535
     MAX_SATURATION = 254
@@ -22,8 +23,60 @@ class Controller
 
     # Simple fucking Hue
     def put(id, data)
-        print "put (#{id}) #{data}\n"
-        # response = @http.send_request('PUT', "/lights/#{id}/state", data.to_json)
+        # print "put (#{id}) #{data}\n"
+        response = @http.send_request('PUT', "/lights/#{id}/state", data.to_json)
+    end
+
+    def set_on(ids)
+        ids.each do |id|
+            put(id, {on: true})
+        end
+    end
+
+    def set_off(ids)
+        ids.each do |id|
+            put(id, {on: false})
+        end
+    end
+
+    def start_strobe(ids, color, rate)
+        # print "strobe with rate #{rate}\n"
+        ids.each do |id|
+            if @seq_key && (k = @seq_key[id])
+                @seq_hash[k] = false  # stop current thread running on this light
+            end
+            if not @seq_key
+                @seq_key = {}
+                @seq_hash = {}
+                @seq_rate = {}
+            end
+            @seq_key[id] = (r = rand())
+            @seq_hash[r] = true
+            @seq_rate[r] = rate
+            Thread.new {
+                while @seq_hash[r]
+                    if color
+                        put(id, {hue: color[0], sat: color[1], bri: 255, on: true, transitiontime: 0})
+                        put(id, {on: false, transitiontime: 0})
+                    else
+                        put(id, {on: true, transitiontime: 0})
+                        put(id, {on: false, transitiontime: 0})
+                    end
+                    sleep 60 / @seq_rate[r].to_f
+                end
+            }
+        end
+    end
+
+    def strobe_rate(ids, color, rate)
+        # print "modifying strobe with rate #{rate}\n"
+        ids.each do |id|
+            if !@seq_key || !@seq_key[id] || @seq_rate[@seq_key[id]] < 10
+                start_strobe([id], color, rate)
+            else
+                @seq_rate[@seq_key[id]] = rate
+            end
+        end
     end
 
     def send_pulse(ids, color, t)
@@ -44,6 +97,27 @@ class Controller
                     put(id, {bri: 0, transitiontime: tenths})
                 }
             end
+        end
+    end
+
+    def set_color(ids, color)
+        ids.each do |id|
+            put(id, {hue: color[0], sat: color[1]})
+        end
+    end
+
+    def interpolate(colors, r)
+        rr = 1 - r
+        [rr * colors[0][0] + r * colors[1][0],
+         rr * colors[0][1] + r * colors[1][1],
+         255].map(&:to_i)
+    end
+
+    def random(source)
+        if source
+            interpolate(source, rand())
+        else
+            [rand() * 65536, rand() * 255, 255].map(&:to_i)
         end
     end
 
@@ -123,12 +197,18 @@ class Controller
         @control_actions = Hash.new
 
         @last_midi_input = Hash.new
-        @calibration_mode = false
-        @signal_flag = false
+        # @calibration_mode = false
+        # @signal_flag = false
 
         # Regexes
-        @pulse_regex = /^\s*(\d(?:,\d)*|all)\s+(pulse|flash)(?:\s+(red|green|blue|#[0-9a-fA-F]{6}))?\s*$/
-        @level_regex = /^\s*(\d(?:,\d)*|all)\s+(h|s|b|H|S|B|hue|sat|bri|saturation|brightness)\s*$/
+        simple_color_expr = /red|yellow|green|blue|violet|pink|#[0-9a-fA-F]{6}/
+        color_expr = /(#{simple_color_expr}|(?:rand|random)(?:\(#{simple_color_expr}\s+#{simple_color_expr}\))?)/
+        @on_regex = /^\s*(\d(?:,\d)*|all)\s+on\s*$/
+        @off_regex = /^\s*(\d(?:,\d)*|all)\s+off\s*$/
+        @color_regex = /^\s*(\d(?:,\d)*|all)\s+#{color_expr}\s*$/
+        @pulse_regex = /^\s*(\d(?:,\d)*|all)\s+(pulse|flash)(?:\s+(#{color_expr}))?\s*$/
+        @level_regex = /^\s*(\d(?:,\d)*|all)\s+(h|s|b|H|S|B|hue|sat|bri|saturation|brightness)(?:\s+(\d+))?\s*$/
+        @strobe_regex = /^\s*(\d(?:,\d)*|all)\s+strobe(?:\s+(\d+))?(?:\s+(#{color_expr}))?\s*$/
 
     end
 
@@ -138,61 +218,107 @@ class Controller
 
     # Parses a hex or word and returns hsb.
     def parse_color(s)
-        if s && s[0] == "#"
-            m = s.match /#(..)(..)(..)/
-            if m != nil
-                r, g, b = m[1].hex, m[2].hex, m[3].hex
-                max = [r, g, b].max
-                min = [r, g, b].min
-                h, s, l = 0, 0, ((max + min) / 2 * 255)
-                d = max - min
-                s = max == 0? 0 : (d / max * 255)
-                h = case max
-                when min
-                    0
-                when r
-                    (g - b) / d + (g < b ? 6 : 0)
-                when g
-                    (b - r) / d + 2
-                when b
-                    (r - g) / d + 4
-                end * 60
-                [(h * 65536.0 / 360).to_i, s, l]
-            end
-        else
-            case s
-            when "red"
-                [0, 255, 255]
-            when "green"
-                [26214, 255, 255]
-            when "blue"
-                [45875, 255, 255]
+        if s
+            if s[0] == "#"
+                m = s.match /#(..)(..)(..)/
+                if m
+                    r, g, b = m[1].hex, m[2].hex, m[3].hex
+                    max = [r, g, b].max
+                    min = [r, g, b].min
+                    h, s, l = 0, 0, ((max + min) / 2 * 255)
+                    d = max - min
+                    s = max == 0? 0 : (d / max * 255)
+                    h = case max
+                    when min
+                        0
+                    when r
+                        (g - b) / d + (g < b ? 6 : 0)
+                    when g
+                        (b - r) / d + 2
+                    when b
+                        (r - g) / d + 4
+                    end * 60
+                    [(h * 65536.0 / 360).to_i, s, l]
+                end
+            elsif s[0] == "r"
+                m = s.match /.+\((.*)\s+(.*)\)/
+                if m
+                    source = [parse_color(m[1]), parse_color(m[2])]
+                    random(source)
+                else
+                    random(nil)
+                end
+            else
+                case s
+                when "red"
+                    [0, 255, 255]
+                when "yellow"
+                    [5279, 255, 255]
+                when "green"
+                    [26214, 255, 255]
+                when "blue"
+                    [45875, 255, 255]
+                when "violet"
+                    [53340, 255, 255]
+                when "pink"
+                    [56070, 255, 255]
+                end
             end
         end
     end
 
+    def validate(action)
+        action =~ @on_regex || action =~ @off_regex || action =~ @color_regex || action =~ @pulse_regex || action =~ @level_regex || action =~ @strobe_regex
+    end
+
     def parse_action(action, value)
-        print "execute\taction #{action}\tvalue #{value}\n"
-        if pulse = @pulse_regex.match(action)
-            light_ids = parse_ids(pulse.captures[0])
-            t = (pulse.captures[1][0] == "p" && 0.3) || 0
-            color = parse_color(pulse.captures[2])
-            print "Pulse color #{color}.\n"
-            send_pulse(light_ids, color, t)
-        elsif level = @level_regex.match(action)
-            light_ids = parse_ids(level.captures[0])
-            case level.captures[1][0]
-            when "h"
-                param = "hue"
-            when "s"
-                param = "sat"
-            when "b"
-                param = "bri"
+        if not action
+            return
+        end
+        actions = action.split(", ")
+        actions.each do |a|
+            # print "execute\taction #{a}\tvalue #{value}\n"
+            if strobe = @strobe_regex.match(a)
+                light_ids = parse_ids(strobe.captures[0])
+                color = parse_color(strobe.captures[2])
+                given_rate = strobe.captures[1] && strobe.captures[1].to_i
+                if given_rate
+                    start_strobe(light_ids, color, given_rate)
+                else
+                    strobe_rate(light_ids, color, (value * STROBE_MAX).to_i)
+                end
+            elsif pulse = @pulse_regex.match(a)
+                light_ids = parse_ids(pulse.captures[0])
+                first = pulse.captures[1][0]
+                t = (first == "p" && 0.3) || 0  # pulse or flash
+                color = parse_color(pulse.captures[2])
+                # print "Pulse color #{color}.\n"
+                send_pulse(light_ids, color, t)
+            elsif level = @level_regex.match(a)
+                light_ids = parse_ids(level.captures[0])
+                case level.captures[1][0]
+                when "h"
+                    param = "hue"
+                when "s"
+                    param = "sat"
+                when "b"
+                    param = "bri"
+                end
+                value = level.captures[2] || value
+                # print "Level change #{param} #{value}.\n"
+                set_param(light_ids, param, value)
+            elsif color = @color_regex.match(a)
+                light_ids = parse_ids(color.captures[0])
+                set_color(light_ids, color)
+            elsif on = @on_regex.match(a)
+                light_ids = parse_ids(on.captures[0])
+                set_on(light_ids)
+            elsif off = @off_regex.match(a)
+                light_ids = parse_ids(off.captures[0])
+                set_off(light_ids)
+            else
+                # print "Invalid action.\n"
             end
-            # print "Level change #{param} #{value}.\n"
-            set_param(light_ids, param, value)
-        else
-            # print "Invalid action.\n"
         end
     end
 
@@ -214,24 +340,27 @@ class Controller
         @control_actions[name] = action
     end
 
-    def query_signal()
-        print "CALIBRATION MODE ON\n"
-        @calibration_mode = true
-        if @signal_flag
-            @signal_flag = false
-            return true
-        else
-            return false
-        end
-    end
+    # def query_signal()
+    #     print "CALIBRATION MODE ON\n"
+    #     @calibration_mode = true
+    #     if @signal_flag
+    #         @signal_flag = false
+    #         return true
+    #     else
+    #         return false
+    #     end
+    # end
 
-    def query_signal_stop()
-        print "NO MORE CALIBRATION\n"
-        @calibration_mode = false
-    end
+    # def query_signal_stop()
+    #     print "NO MORE CALIBRATION\n"
+    #     @calibration_mode = false
+    # end
 
     def midi_hue_loop()
         print "Listening for MIDI input...\n"
+
+        tf_loop()
+
         Thread.new() { tf_loop() }
         nk_loop()
     end
@@ -241,11 +370,11 @@ class Controller
             while @selected == "M" do
                 # Parse MIDI data from Trigger Finger
                 
-                begin
-                    input = @input.gets[0]
-                    print "SIGNAL!\n"
-                    @signal_flag ||= (input[:data][2] > 0)
-                end while @calibration_mode
+                # begin
+                input = @input.gets[0]
+                    # print "SIGNAL!\n"
+                    # @signal_flag ||= (input[:data][2] > 0)
+                # end while @calibration_mode
 
                 if @selected == "M"
                     data, t = input[:data], input[:timestamp]
@@ -254,7 +383,7 @@ class Controller
                         @last_midi_input[id] = t
                         control = TFControl.new(type, id, value)
                         if control and control.id
-                            print "TF\t#{control.kind}_#{control.id} (#{control.value})\n"
+                            # print "TF\t#{control.kind}_#{control.id} (#{control.value})\n"
                             parse_action(@control_actions["#{control.kind}_#{control.id}"], control.percentage)
                         end
                     end
@@ -270,11 +399,11 @@ class Controller
             while @selected == "K" do
                 # Parse MIDI data from Korg Nano
 
-                begin
-                    input = @input.gets[0]
-                    print "SIGNAL!\n"
-                    @signal_flag ||= (input[:data][2] > 0)
-                end while @calibration_mode
+                # begin
+                input = @input.gets[0]
+                    # print "SIGNAL!\n"
+                    # @signal_flag ||= (input[:data][2] > 0)
+                # end while @calibration_mode
 
                 if @selected == "K"
                     data = input[:data]

@@ -43,12 +43,16 @@ post '/ajax/changemode' do
     controller.change_control_mode(request["name"], request["value"])
 end
 
-post '/ajax/signal' do
-    signal = controller.query_signal()
-    content_type :json
-    {:signal => signal}.to_json
+post '/ajax/execute' do
+    controller.parse_action(request["action"], nil)
 end
 
-post '/ajax/signalstop' do
-    controller.query_signal_stop()
-end
+# post '/ajax/signal' do
+#     signal = controller.query_signal()
+#     content_type :json
+#     {:signal => signal}.to_json
+# end
+
+# post '/ajax/signalstop' do
+#     controller.query_signal_stop()
+# end
