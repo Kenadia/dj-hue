@@ -49,6 +49,7 @@ html
                 control_names = parse_names();
                 for (var i in control_names) {
                     eval(control_names[i] + " = ko.observable(\"" + defaults[i] + "\");");
+                    console.log(control_names[i] + " = ko.observable(\"" + defaults[i] + "\");");
                     eval(control_names[i] + ".subscribe(function(){changed(\"" + control_names[i] + "\"," + control_names[i] + "())});")
                     changed(control_names[i], defaults[i]);
                 }

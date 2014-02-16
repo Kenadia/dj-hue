@@ -3,5 +3,5 @@
     √ parse_color returns hsb
 - latency calibration for sync with audio
 √ throttle changes
-- nice interface
-- make it work with keyboard
+√ nice interface
+√ make it work with keyboard

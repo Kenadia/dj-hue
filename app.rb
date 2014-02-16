@@ -14,8 +14,8 @@ get '/' do
     @control_names = Hash[controller.get_control_names(nil).collect { |v| [v, true] }]
     @control_names1 = controller.get_control_names(1)
     @pad_names = Hash[@control_names1[0..15].collect { |v| [v, true] }]
-    @slider_names = Hash[@control_names1[0..3].collect { |v| [v, true] }]
-    @knob_names = Hash[@control_names1[0..7].collect { |v| [v, true] }]
+    @slider_names = Hash[@control_names1[16..19].collect { |v| [v, true] }]
+    @knob_names = Hash[@control_names1[20..27].collect { |v| [v, true] }]
     @control_names2 = controller.get_control_names(2)
     @key_names = Hash[@control_names2[0..24].collect { |v| [v, true] }]
     slim :index
