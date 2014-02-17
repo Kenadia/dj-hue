@@ -1,17 +1,6 @@
-- reduce latency (direct access to api)
-    √ define put
-    √ parse_color returns hsb
-- latency calibration for sync with audio
-√ throttle changes
-√ nice interface
-√ make it work with keyboard
-
-
-
-
-new todo
-√ make strobe work
-√ make multiple commands work
-- make sure things work
-- make good defaults
-- make good video
+Remaining issues and future improvements
+- It's still slow. It'd be nice if it were all javascript, but maybe that's for another project.
+- The colors "red", "yellow", etc. don't look like what they sound like.
+- Should implement some cool sequences.
+- It seems unrealible, especially switching between devices.
+- The default settings aren't very good.

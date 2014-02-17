@@ -35,7 +35,7 @@ function endsWith(str, suffix) {
 function parse_color(s) {
     var x = s.substr(s.length - 7);
     return hexToRgb(x)? x :
-        (endsWith(s, "red") && "#ff0000") || (endsWith(s, "green") && "#00ff00" || (endsWith(s, "blue") && "#0000ff") || (endsWith(s, "yellow") && "#ffff00") || (endsWith(s, "pink") && "#ff69b4") || (endsWith(s, "violet") && "#9400d3")));
+        (endsWith(s, "red") && "#ff0000") || (endsWith(s, "green") && "#00ff00" || (endsWith(s, "blue") && "#0000ff") || (endsWith(s, "yellow") && "#ffff00") || (endsWith(s, "pink") && "#ff69b4") || (endsWith(s, "violet") && "#9400d3"));
 }
 
 function validate(s) {

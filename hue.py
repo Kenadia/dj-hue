@@ -8,7 +8,7 @@ import time
 ### ------ CONSTANTS ------ ###
 
 
-url = 'http://192.168.1.119/api/1234567890/'
+url = 'http://10.214.59.124/api/1234567890'
 light_ids = [1, 2, 3]
 all = light_ids
 red = [6.7500E-01, 3.2200E-01]

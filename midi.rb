@@ -1,16 +1,18 @@
 $:.unshift File.dirname(__FILE__)
 
+require 'json'
 require 'unimidi'
 require './tf-control'
 require './nk-control'
 require "net/http"
-
+require 'rest_client'
 
 class Controller
 
-    PORT = 80
-    URL = "http://192.168.1.119/api/1234567890/"
-    @http = Net::HTTP.new(URL, PORT)
+    # PORT = 80
+    # HOST = '10.136.210.117'
+    # PATH = 'api/newdeveloper/'
+    # @http = Net::HTTP.new(URL, PORT)
 
     BULB_COUNT = 3
     THROTTLE = 200  # ms
@@ -20,11 +22,31 @@ class Controller
     MAX_SATURATION = 254
     MAX_BRIGHTNESS = 255
 
+    URL1 = :'http://10.214.59.124/api/1234567890/lights/1/state'
+
+    URL2 = :'http://10.214.59.124/api/1234567890/lights/2/state'
+
+    URL3 = :'http://10.214.59.124/api/1234567890/lights/3/state'
+
 
     # Simple fucking Hue
     def put(id, data)
-        # print "put (#{id}) #{data}\n"
-        response = @http.send_request('PUT', "/lights/#{id}/state", data.to_json)
+
+        case id
+        when 1
+            RestClient.put URL1, data.to_json, {:content_type => :json}
+        when 2
+            RestClient.put URL2, data.to_json, {:content_type => :json}
+        when 3
+            RestClient.put URL3, data.to_json, {:content_type => :json}
+        end
+
+        print "put (#{id}) #{data}\n"
+        # req = Net::HTTP::Put.new("#{PATH}/lights/#{id}/state", initheader = {'Content-Type' => 'text/json'})
+        # req.body = data.to_json
+        # response = Net::HTTP.new(HOST, PORT).start {|http| http.request(req)}
+        # puts response.code
+        # response = @http.send_request('PUT', "/lights/#{id}/state", data.to_json)
     end
 
     def set_on(ids)
@@ -40,7 +62,7 @@ class Controller
     end
 
     def start_strobe(ids, color, rate)
-        # print "strobe with rate #{rate}\n"
+        print "strobe with rate #{rate}\n"
         ids.each do |id|
             if @seq_key && (k = @seq_key[id])
                 @seq_hash[k] = false  # stop current thread running on this light
@@ -56,11 +78,11 @@ class Controller
             Thread.new {
                 while @seq_hash[r]
                     if color
-                        put(id, {hue: color[0], sat: color[1], bri: 255, on: true, transitiontime: 0})
-                        put(id, {on: false, transitiontime: 0})
+                        put(id, {hue: color[0], sat: color[1], bri: 255, transitiontime: 0})
+                        put(id, {bri: 0, transitiontime: 0})
                     else
-                        put(id, {on: true, transitiontime: 0})
-                        put(id, {on: false, transitiontime: 0})
+                        put(id, {bri: 255, transitiontime: 0})
+                        put(id, {bri: 0, transitiontime: 0})
                     end
                     sleep 60 / @seq_rate[r].to_f
                 end
@@ -69,7 +91,7 @@ class Controller
     end
 
     def strobe_rate(ids, color, rate)
-        # print "modifying strobe with rate #{rate}\n"
+        print "modifying strobe with rate #{rate}\n"
         ids.each do |id|
             if !@seq_key || !@seq_key[id] || @seq_rate[@seq_key[id]] < 10
                 start_strobe([id], color, rate)
@@ -124,13 +146,17 @@ class Controller
     def set_param(ids, param, value)
         ids.each do |id|
             data = {transitiontime: THROTTLE / 100}
-            data[param] = value
+            if param == "hue"
+                data[param] = (value * 65536).to_i
+            else
+                data[param] = (value * 255).to_i
+            end
             put(id, data)
         end
     end
 
     def init_lights()
-        for i in 0..BULB_COUNT-1
+        for i in 1..BULB_COUNT
             put(i, {hue: 0, sat: 255, bri: 0, on: true})
         end
     end
@@ -277,7 +303,7 @@ class Controller
         end
         actions = action.split(", ")
         actions.each do |a|
-            # print "execute\taction #{a}\tvalue #{value}\n"
+            print "execute\taction #{a}\tvalue #{value}\n"
             if strobe = @strobe_regex.match(a)
                 light_ids = parse_ids(strobe.captures[0])
                 color = parse_color(strobe.captures[2])
@@ -292,7 +318,7 @@ class Controller
                 first = pulse.captures[1][0]
                 t = (first == "p" && 0.3) || 0  # pulse or flash
                 color = parse_color(pulse.captures[2])
-                # print "Pulse color #{color}.\n"
+                print "Pulse color #{color}.\n"
                 send_pulse(light_ids, color, t)
             elsif level = @level_regex.match(a)
                 light_ids = parse_ids(level.captures[0])
@@ -305,7 +331,7 @@ class Controller
                     param = "bri"
                 end
                 value = level.captures[2] || value
-                # print "Level change #{param} #{value}.\n"
+                print "Level change #{param} #{value}.\n"
                 set_param(light_ids, param, value)
             elsif color = @color_regex.match(a)
                 light_ids = parse_ids(color.captures[0])
@@ -317,7 +343,7 @@ class Controller
                 light_ids = parse_ids(off.captures[0])
                 set_off(light_ids)
             else
-                # print "Invalid action.\n"
+                print "Invalid action.\n"
             end
         end
     end
@@ -336,7 +362,7 @@ class Controller
     end
 
     def change_control_mode(name, action)
-        # print "registered\tname #{name}\taction #{action}\n"
+        print "registered\tname #{name}\taction #{action}\n"
         @control_actions[name] = action
     end
 
@@ -358,11 +384,8 @@ class Controller
 
     def midi_hue_loop()
         print "Listening for MIDI input...\n"
-
+        Thread.new() { nk_loop() }
         tf_loop()
-
-        Thread.new() { tf_loop() }
-        nk_loop()
     end
 
     def tf_loop()
@@ -383,7 +406,7 @@ class Controller
                         @last_midi_input[id] = t
                         control = TFControl.new(type, id, value)
                         if control and control.id
-                            # print "TF\t#{control.kind}_#{control.id} (#{control.value})\n"
+                            print "TF\t#{control.kind}_#{control.id} (#{control.value})\n"
                             parse_action(@control_actions["#{control.kind}_#{control.id}"], control.percentage)
                         end
                     end
